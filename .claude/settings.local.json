@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(cmd /c \"mkdir app\\(auth)\\login app\\(auth)\\signup app\\(dashboard)\\chat app\\(dashboard)\\files app\\(dashboard)\\settings components\\ui components\\chat components\\files components\\layout lib 2>nul || exit 0\")",
+      "Bash(npm install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
