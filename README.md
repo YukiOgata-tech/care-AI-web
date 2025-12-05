@@ -1,36 +1,162 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Care AI - 介護サポートAI
 
-## Getting Started
+介護者をサポートするAIアシスタントSaaSアプリケーション
 
-First, run the development server:
+## 📋 プロジェクト概要
+
+Care AIは、介護現場で働く方々を支援するためのAIチャットアプリケーションです。ケアプラン、医師指示書、緊急時対応マニュアルなどのPDF資料を登録し、OpenAI File Search機能を使って必要な情報を即座に引き出すことができます。
+
+### 主な特徴
+
+- **AIチャット**: OpenAI GPT-4o/4o-miniを使用した自然な会話
+- **File Search機能**: 登録資料からの自動検索・引用
+- **ファイル管理**: カテゴリ別のPDF資料管理
+- **家族単位データ分離**: メタデータによる安全なデータ管理
+- **2つのAIモード**:
+  - 通常会話モード（File Search OFF）- 軽量・低コスト
+  - 資料参照モード（File Search ON）- 精度重視
+
+## 🚀 開発状況
+
+### ✅ 実装済み（フロントエンド）
+
+- 認証画面（ログイン/サインアップ）
+- ダッシュボード（統計表示、クイックアクション）
+- AIチャット画面（会話履歴、メッセージ表示）
+- ファイル管理画面（アップロード、カテゴリ分類）
+- 設定画面（プロフィール、通知、AI設定）
+- レスポンシブデザイン
+
+### 🔄 今後の実装予定（バックエンド統合）
+
+- Supabase認証統合
+- OpenAI API統合（Responses API）
+- File Search機能の実装
+- Supabase Storageへのファイルアップロード
+- Vector Storeへのファイル登録
+- 日報/レポート自動生成
+- 多職種アカウント連携
+
+## 🛠 技術スタック
+
+### フロントエンド
+- **フレームワーク**: Next.js 16 (App Router)
+- **言語**: TypeScript
+- **UI**: Radix UI + Tailwind CSS 4
+- **状態管理**: Zustand
+- **アニメーション**: Framer Motion
+- **通知**: Sonner
+- **Markdown**: react-markdown
+
+### バックエンド（予定）
+- **認証・DB**: Supabase (Auth, Database, Storage)
+- **AI**: OpenAI API (GPT-4o, GPT-4o-mini)
+- **ファイル検索**: OpenAI Vector Store + File Search
+
+## 📦 セットアップ
+
+### 必要要件
+
+- Node.js 18以上
+- npm または yarn
+
+### インストール
 
 ```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで [http://localhost:3000](http://localhost:3000) を開いてください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 環境変数（今後必要）
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+プロジェクトルートに `.env.local` ファイルを作成:
 
-## Learn More
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-To learn more about Next.js, take a look at the following resources:
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 プロジェクト構成
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+care-ai-webapp/
+├── app/                      # Next.js App Router
+│   ├── (auth)/              # 認証画面グループ
+│   │   ├── login/           # ログイン
+│   │   └── signup/          # サインアップ
+│   ├── (dashboard)/         # ダッシュボードグループ
+│   │   ├── chat/            # チャット画面
+│   │   ├── files/           # ファイル管理
+│   │   ├── settings/        # 設定
+│   │   └── page.tsx         # ホーム画面
+│   ├── globals.css          # グローバルスタイル
+│   └── layout.tsx           # ルートレイアウト
+├── components/              # Reactコンポーネント
+│   ├── ui/                  # 基本UIコンポーネント
+│   ├── chat/                # チャット関連
+│   ├── files/               # ファイル管理関連
+│   └── layout/              # レイアウト関連
+├── lib/                     # ユーティリティ
+│   ├── types.ts             # 型定義
+│   ├── utils.ts             # ヘルパー関数
+│   ├── store.ts             # Zustandストア
+│   └── dummy-data.ts        # ダミーデータ
+└── docs/                    # ドキュメント
+    └── care-ai-overview.md  # プロジェクト概要
+```
 
-## Deploy on Vercel
+## 🎯 使用方法
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 現在（ダミーデータ版）
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **ログイン**: 任意のメールアドレスとパスワードでログイン可能
+2. **チャット**: メッセージを送信すると1.5秒後にダミーAI応答
+3. **ファイル管理**: PDFファイルをアップロード（2秒後に完了）
+4. **設定**: 各種設定の変更が可能
+
+### API統合後
+
+1. Supabaseアカウントでログイン
+2. PDF資料をアップロード（ケアプラン、医師指示書等）
+3. File Search ONでAIに質問
+4. 資料を参照した回答を取得
+
+## 🔐 セキュリティ
+
+- Row Level Security（RLS）によるデータ分離
+- family_idによる家族単位のデータ管理
+- メタデータによる資料の適切な分類・検索
+
+## 📚 ドキュメント
+
+詳細な仕様は [`docs/care-ai-overview.md`](./docs/care-ai-overview.md) を参照してください。
+
+## 🤝 コントリビューション
+
+プルリクエストは歓迎します。大きな変更の場合は、まずissueを開いて変更内容を議論してください。
+
+## 📄 ライセンス
+
+このプロジェクトは私的利用のためのものです。
+
+## 🙏 謝辞
+
+- [Next.js](https://nextjs.org)
+- [OpenAI](https://openai.com)
+- [Supabase](https://supabase.com)
+- [Radix UI](https://www.radix-ui.com)
+- [shadcn/ui](https://ui.shadcn.com)
+
+---
+
+**開発開始日**: 2024年12月5日
+**現在のステータス**: フロントエンド実装完了 ✅
