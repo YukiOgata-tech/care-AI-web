@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,14 +19,29 @@ import {
   Plus,
   Clock,
   Search,
+  CheckCircle,
 } from 'lucide-react';
 import { useConversationStore, useDocumentStore } from '@/lib/store';
 import { dummyStats } from '@/lib/dummy-data';
 import { formatRelativeTime, getCategoryColor, getCategoryLabel } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const { profile } = useAuth();
   const conversations = useConversationStore((state) => state.conversations);
   const documents = useDocumentStore((state) => state.documents);
+
+  // 認証成功時のトースト表示
+  useEffect(() => {
+    const authStatus = searchParams.get('auth');
+    if (authStatus === 'success' && profile) {
+      toast.success(`${profile.full_name || 'ユーザー'}さん、ログインしました！`);
+      // URLパラメータをクリア
+      window.history.replaceState({}, '', '/');
+    }
+  }, [searchParams, profile]);
 
   const recentConversations = conversations.slice(0, 5);
   const recentDocuments = documents.slice(0, 5);
@@ -33,10 +50,79 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">ダッシュボード</h1>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-bold tracking-tight">ダッシュボード</h1>
+          {profile && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <CheckCircle className="h-3 w-3 text-green-500" />
+              <span>ログイン中</span>
+            </Badge>
+          )}
+        </div>
         <p className="text-muted-foreground">
-          介護サポートAIへようこそ。今日も安心安全なケアをサポートします。
+          {profile?.full_name ? `${profile.full_name}さん、` : ''}介護サポートAIへようこそ。今日も安心安全なケアをサポートします。
         </p>
+
+        {/* ユーザー情報表示 */}
+        {profile && (
+          <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
+            <h3 className="text-sm font-semibold mb-2">アカウント情報</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">名前:</span>{' '}
+                <span className="font-medium">{profile.full_name || '未設定'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">メール:</span>{' '}
+                <span className="font-medium">{profile.email || '未設定'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">ロール:</span>{' '}
+                <Badge variant="secondary">
+                  {profile.primary_role === 'super_admin' && 'スーパー管理者'}
+                  {profile.primary_role === 'admin' && '管理者'}
+                  {profile.primary_role === 'manager' && 'マネージャー'}
+                  {profile.primary_role === 'staff' && 'スタッフ'}
+                  {profile.primary_role === 'family' && '家族'}
+                </Badge>
+              </div>
+              {profile.is_super_admin && (
+                <div>
+                  <Badge variant="destructive" className="text-xs">
+                    全データアクセス可能
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {/* 所属情報 */}
+            {profile.families && profile.families.length > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <span className="text-xs text-muted-foreground">所属家族:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {profile.families.map((family) => (
+                    <Badge key={family.family_id} variant="outline" className="text-xs">
+                      {family.family_label || '未設定'}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {profile.organizations && profile.organizations.length > 0 && (
+              <div className="mt-2">
+                <span className="text-xs text-muted-foreground">所属組織:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {profile.organizations.map((org) => (
+                    <Badge key={org.organization_id} variant="outline" className="text-xs">
+                      {org.organization_name || '未設定'}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -99,7 +185,7 @@ export default function DashboardPage() {
           <CardDescription>よく使う機能へすぐにアクセス</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-          <Link href="/dashboard/chat">
+          <Link href="/chat">
             <Button className="w-full h-auto py-6" variant="outline">
               <div className="flex flex-col items-center gap-2">
                 <MessageSquare className="h-6 w-6" />
@@ -113,7 +199,7 @@ export default function DashboardPage() {
             </Button>
           </Link>
 
-          <Link href="/dashboard/files">
+          <Link href="/files">
             <Button className="w-full h-auto py-6" variant="outline">
               <div className="flex flex-col items-center gap-2">
                 <Plus className="h-6 w-6" />
@@ -127,7 +213,7 @@ export default function DashboardPage() {
             </Button>
           </Link>
 
-          <Link href="/dashboard/chat">
+          <Link href="/chat">
             <Button className="w-full h-auto py-6" variant="outline">
               <div className="flex flex-col items-center gap-2">
                 <Clock className="h-6 w-6" />
@@ -155,7 +241,7 @@ export default function DashboardPage() {
               {recentConversations.map((conversation) => (
                 <Link
                   key={conversation.id}
-                  href={`/dashboard/chat?id=${conversation.id}`}
+                  href={`/chat?id=${conversation.id}`}
                   className="block"
                 >
                   <div className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent transition-colors">
@@ -184,7 +270,7 @@ export default function DashboardPage() {
               )}
             </div>
             {recentConversations.length > 0 && (
-              <Link href="/dashboard/chat">
+              <Link href="/chat">
                 <Button variant="outline" className="w-full mt-4">
                   すべて表示
                 </Button>
@@ -230,7 +316,7 @@ export default function DashboardPage() {
               )}
             </div>
             {recentDocuments.length > 0 && (
-              <Link href="/dashboard/files">
+              <Link href="/files">
                 <Button variant="outline" className="w-full mt-4">
                   すべて表示
                 </Button>

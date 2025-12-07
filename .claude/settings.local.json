@@ -3,7 +3,11 @@
     "allow": [
       "Bash(dir:*)",
       "Bash(cmd /c \"mkdir app\\(auth)\\login app\\(auth)\\signup app\\(dashboard)\\chat app\\(dashboard)\\files app\\(dashboard)\\settings components\\ui components\\chat components\\files components\\layout lib 2>nul || exit 0\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(copy \"app\\(dashboard)\\page.tsx\" \"app\\(dashboard)\\page-original-backup.tsx\")",
+      "Bash(cmd /c \"mkdir app\\(admin) app\\(admin)\\organizations 2>nul || exit 0\")",
+      "Bash(cmd /c \"mkdir app\\(admin)\\organizations\\[id] 2>nul || exit 0\")",
+      "Bash(cmd /c \"if exist .env.local (echo File exists) else (echo File NOT found)\")"
     ],
     "deny": [],
     "ask": []

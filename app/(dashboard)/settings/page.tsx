@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,27 +21,115 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { useUserStore, useSettingsStore } from '@/lib/store';
+import { useAuth } from '@/hooks/useAuth';
+import { useSettingsStore } from '@/lib/store';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { User, Bell, Sparkles, Monitor, Save } from 'lucide-react';
+import { User, Bell, Sparkles, Monitor, Save, Lock, Loader2 } from 'lucide-react';
+import { Gender } from '@/lib/supabase/types';
 
 export default function SettingsPage() {
-  const user = useUserStore((state) => state.user);
+  const { user, profile, updateProfile } = useAuth();
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
 
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  // プロフィール情報
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
 
-  const handleSaveProfile = () => {
-    // プロフィール更新のダミー処理
-    toast.success('プロフィールを更新しました');
+  // パスワード変更
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isPasswordChanging, setIsPasswordChanging] = useState(false);
+
+  // プロフィール情報を初期化
+  useEffect(() => {
+    if (profile) {
+      setName(profile.full_name || '');
+      setPhone(profile.phone || '');
+      setGender(profile.gender || '');
+    }
+  }, [profile]);
+
+  // プロフィール保存
+  const handleSaveProfile = async () => {
+    if (!name.trim()) {
+      toast.error('名前を入力してください');
+      return;
+    }
+
+    setIsProfileSaving(true);
+    try {
+      await updateProfile({
+        full_name: name,
+        phone: phone || undefined,
+        gender: gender || undefined,
+      });
+      toast.success('プロフィールを更新しました');
+    } catch (error: any) {
+      console.error('プロフィール更新エラー:', error);
+      toast.error(error.message || 'プロフィールの更新に失敗しました');
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  // パスワード変更
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('新しいパスワードを入力してください');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('パスワードが一致しません');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('パスワードは6文字以上で入力してください');
+      return;
+    }
+
+    setIsPasswordChanging(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast.success('パスワードを変更しました');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('パスワード変更エラー:', error);
+      toast.error(error.message || 'パスワードの変更に失敗しました');
+    } finally {
+      setIsPasswordChanging(false);
+    }
   };
 
   const handleSaveSettings = () => {
     toast.success('設定を保存しました');
   };
+
+  // ローディング中
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -58,6 +146,10 @@ export default function SettingsPage() {
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
             プロフィール
+          </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <Lock className="h-4 w-4" />
+            セキュリティ
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" />
@@ -86,14 +178,21 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
                   <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-2xl">
-                    {user?.name?.charAt(0) || 'U'}
+                    {profile.full_name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-medium">プロフィール画像</h3>
+                  <h3 className="font-medium">{profile.full_name || 'ユーザー'}</h3>
                   <p className="text-sm text-muted-foreground">
-                    クリックして画像を変更
+                    {profile.email}
                   </p>
+                  <Badge variant="secondary" className="mt-1">
+                    {profile.primary_role === 'super_admin' && 'スーパー管理者'}
+                    {profile.primary_role === 'admin' && '管理者'}
+                    {profile.primary_role === 'manager' && 'マネージャー'}
+                    {profile.primary_role === 'staff' && 'スタッフ'}
+                    {profile.primary_role === 'family' && '家族'}
+                  </Badge>
                 </div>
               </div>
 
@@ -106,6 +205,7 @@ export default function SettingsPage() {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder="山田 太郎"
                   />
                 </div>
 
@@ -114,24 +214,165 @@ export default function SettingsPage() {
                   <Input
                     id="email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={profile.email || ''}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    メールアドレスは変更できません
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">電話番号（任意）</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="090-1234-5678"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="role">役割</Label>
+                  <Label htmlFor="gender">法的性別（任意）</Label>
+                  <Select
+                    value={gender}
+                    onValueChange={(value) => setGender(value as Gender)}
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="選択してください" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">男性</SelectItem>
+                      <SelectItem value="female">女性</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    あなたの法的な性別を選択してください
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="user_id">ユーザーID</Label>
                   <Input
-                    id="role"
-                    value={user?.role === 'caregiver' ? '介護者' : user?.role || ''}
+                    id="user_id"
+                    value={profile.user_id}
                     disabled
+                    className="bg-muted font-mono text-xs"
                   />
                 </div>
               </div>
 
-              <Button onClick={handleSaveProfile}>
-                <Save className="mr-2 h-4 w-4" />
-                変更を保存
+              <Button
+                onClick={handleSaveProfile}
+                disabled={isProfileSaving}
+              >
+                {isProfileSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    変更を保存
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 所属情報 */}
+          {(profile.families && profile.families.length > 0 ||
+            profile.organizations && profile.organizations.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>所属情報</CardTitle>
+                <CardDescription>
+                  あなたが所属している家族や組織
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {profile.families && profile.families.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">所属家族</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.families.map((family) => (
+                        <Badge key={family.family_id} variant="outline">
+                          {family.family_label}
+                          {family.relationship && ` (${family.relationship})`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {profile.organizations && profile.organizations.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">所属組織</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile.organizations.map((org) => (
+                        <Badge key={org.organization_id} variant="outline">
+                          {org.organization_name}
+                          {` (${org.role})`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Security Settings */}
+        <TabsContent value="security" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>パスワード変更</CardTitle>
+              <CardDescription>
+                アカウントのパスワードを変更します
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">新しいパスワード</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="6文字以上"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">新しいパスワード（確認）</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="もう一度入力"
+                />
+              </div>
+
+              <Button
+                onClick={handleChangePassword}
+                disabled={isPasswordChanging}
+              >
+                {isPasswordChanging ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    変更中...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    パスワードを変更
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
