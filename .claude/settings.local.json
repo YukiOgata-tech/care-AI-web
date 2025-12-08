@@ -7,7 +7,20 @@
       "Bash(copy \"app\\(dashboard)\\page.tsx\" \"app\\(dashboard)\\page-original-backup.tsx\")",
       "Bash(cmd /c \"mkdir app\\(admin) app\\(admin)\\organizations 2>nul || exit 0\")",
       "Bash(cmd /c \"mkdir app\\(admin)\\organizations\\[id] 2>nul || exit 0\")",
-      "Bash(cmd /c \"if exist .env.local (echo File exists) else (echo File NOT found)\")"
+      "Bash(cmd /c \"if exist .env.local (echo File exists) else (echo File NOT found)\")",
+      "Bash(cmd /c \"if exist .cursorrules (echo File exists) else (echo File NOT found)\")",
+      "Bash(cmd /c \"if exist .cursor\\rules (echo Directory exists) else (echo Directory NOT found)\")",
+      "Bash(cmd /c \"if exist .github\\copilot-instructions.md (echo File exists) else (echo File NOT found)\")",
+      "Bash(cmd /c \"if exist .env.local (type .env.local) else (echo No .env.local file)\")",
+      "Bash(cmd /c \"if exist CLAUDE.md (echo File exists) else (echo File NOT found)\")",
+      "Bash(cmd /c \"dir /s /b app\\(admin)\")",
+      "Bash(cmd /c \"mkdir app\\admin app\\admin\\organizations app\\admin\\organizations\\[id] app\\admin\\families app\\admin\\users 2>nul || exit 0\")",
+      "Bash(cmd /c \"move app\\(admin)\\organizations\\page.tsx app\\admin\\organizations\\page.tsx\")",
+      "Bash(cmd /c \"move app\\(admin)\\organizations\\[id]\\page.tsx app\\admin\\organizations\\[id]\\page.tsx\")",
+      "Bash(cmd /c \"move app\\(admin)\\layout.tsx app\\admin\\layout.tsx\")",
+      "Bash(cmd /c \"rmdir /s /q app\\(admin)\")",
+      "Bash(cmd /c \"dir /s /b app\\admin 2>nul\")",
+      "Bash(cmd /c \"dir /s /b app\\(admin) 2>nul\")"
     ],
     "deny": [],
     "ask": []

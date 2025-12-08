@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Loader2, Heart } from 'lucide-react';
+import { Loader2, Heart, Users, Home } from 'lucide-react';
 
 function GoogleIcon() {
   return (
@@ -37,10 +38,12 @@ function GoogleIcon() {
 export default function SignupPage() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
+  const [userType, setUserType] = useState<'staff' | 'family'>('family');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [invitationCode, setInvitationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -57,10 +60,16 @@ export default function SignupPage() {
       return;
     }
 
+    // スタッフの場合は招待コード必須
+    if (userType === 'staff' && !invitationCode.trim()) {
+      toast.error('スタッフとして登録するには招待コードが必要です');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await signUp(email, password, name);
+      await signUp(email, password, name, userType, invitationCode || undefined);
       toast.success('アカウントを作成しました。確認メールをご確認ください。');
       router.push('/login');
     } catch (error: any) {
@@ -130,6 +139,64 @@ export default function SignupPage() {
 
           {/* Email/Password Signup */}
           <form onSubmit={handleSignup} className="space-y-4">
+            {/* User Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="userType">登録タイプ</Label>
+              <Select
+                value={userType}
+                onValueChange={(value: 'staff' | 'family') => setUserType(value)}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="userType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="family">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      <span>ご家族</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="staff">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>事業所スタッフ</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {userType === 'staff'
+                  ? '事業所スタッフとして登録する場合は招待コードが必要です'
+                  : 'ご家族として登録できます'}
+              </p>
+            </div>
+
+            {/* Invitation Code - Required for staff, optional for family */}
+            {(userType === 'staff' || userType === 'family') && (
+              <div className="space-y-2">
+                <Label htmlFor="invitationCode">
+                  招待コード
+                  {userType === 'staff' && <span className="text-red-500 ml-1">*</span>}
+                  {userType === 'family' && <span className="text-muted-foreground ml-1">(任意)</span>}
+                </Label>
+                <Input
+                  id="invitationCode"
+                  type="text"
+                  placeholder="例: ABC123XYZ"
+                  value={invitationCode}
+                  onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+                  required={userType === 'staff'}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {userType === 'staff'
+                    ? '事業所管理者から受け取った8文字の招待コードを入力してください'
+                    : '事業所から招待コードを受け取っている場合は入力してください'}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="name">お名前</Label>
               <Input

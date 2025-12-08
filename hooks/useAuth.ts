@@ -80,8 +80,46 @@ export function useAuth() {
   };
 
   // サインアップ
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    userType: 'staff' | 'family' = 'family',
+    invitationCode?: string
+  ) => {
     const supabase = createClient();
+
+    // 招待コードの検証（提供されている場合）
+    let organizationId: string | null = null;
+    let invitationRole: string | null = null;
+
+    if (invitationCode) {
+      const { data: invitation, error: invitationError } = await supabase
+        .from('organization_invitations')
+        .select('*')
+        .eq('code', invitationCode)
+        .eq('is_active', true)
+        .single();
+
+      if (invitationError || !invitation) {
+        throw new Error('招待コードが無効です');
+      }
+
+      // 有効期限チェック
+      if (new Date(invitation.expires_at) < new Date()) {
+        throw new Error('招待コードの有効期限が切れています');
+      }
+
+      // 使用回数チェック
+      if (invitation.used_count >= invitation.max_uses) {
+        throw new Error('招待コードの使用回数が上限に達しています');
+      }
+
+      organizationId = invitation.organization_id;
+      invitationRole = invitation.role;
+    }
+
+    // ユーザー作成
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -90,11 +128,36 @@ export function useAuth() {
     if (error) throw error;
 
     if (data.user) {
+      // プロフィール作成
+      const primaryRole: PrimaryRole = userType === 'staff' ? 'staff' : 'family';
       await supabase.from('app_profiles').insert({
         user_id: data.user.id,
         full_name: fullName,
-        primary_role: 'family',
+        primary_role: primaryRole,
       });
+
+      // 招待コードが使用された場合、組織メンバーシップを作成
+      if (organizationId && invitationRole && invitationCode) {
+        await supabase.from('organization_members').insert({
+          organization_id: organizationId,
+          user_id: data.user.id,
+          role: invitationRole,
+        });
+
+        // 招待コードの使用回数を取得して更新
+        const { data: currentInvitation } = await supabase
+          .from('organization_invitations')
+          .select('used_count')
+          .eq('code', invitationCode)
+          .single();
+
+        if (currentInvitation) {
+          await supabase
+            .from('organization_invitations')
+            .update({ used_count: currentInvitation.used_count + 1 })
+            .eq('code', invitationCode);
+        }
+      }
     }
     return data;
   };
@@ -108,6 +171,98 @@ export function useAuth() {
     });
     if (error) throw error;
     return data;
+  };
+
+  // 招待コードで組織に参加（既存ユーザー用）
+  const joinOrganization = async (invitationCode: string) => {
+    const supabase = createClient();
+
+    if (!user) {
+      throw new Error('ログインしていません');
+    }
+
+    // 招待コードの検証
+    const { data: invitation, error: invitationError } = await supabase
+      .from('organization_invitations')
+      .select('*')
+      .eq('code', invitationCode)
+      .eq('is_active', true)
+      .single();
+
+    if (invitationError || !invitation) {
+      throw new Error('招待コードが無効です');
+    }
+
+    // 有効期限チェック
+    if (new Date(invitation.expires_at) < new Date()) {
+      throw new Error('招待コードの有効期限が切れています');
+    }
+
+    // 使用回数チェック
+    if (invitation.used_count >= invitation.max_uses) {
+      throw new Error('招待コードの使用回数が上限に達しています');
+    }
+
+    // 既に組織に所属していないかチェック（1ユーザー=1組織）
+    const { data: existingMembership, error: membershipError } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (membershipError) throw membershipError;
+
+    if (existingMembership) {
+      throw new Error('既に他の事業所に所属しています。1つの事業所のみ所属できます。');
+    }
+
+    // 組織メンバーシップを作成
+    const { error: insertError } = await supabase
+      .from('organization_members')
+      .insert({
+        organization_id: invitation.organization_id,
+        user_id: user.id,
+        role: invitation.role,
+      });
+
+    if (insertError) throw insertError;
+
+    // 招待コードの使用回数を更新
+    const { data: currentInvitation } = await supabase
+      .from('organization_invitations')
+      .select('used_count')
+      .eq('code', invitationCode)
+      .single();
+
+    if (currentInvitation) {
+      await supabase
+        .from('organization_invitations')
+        .update({ used_count: currentInvitation.used_count + 1 })
+        .eq('code', invitationCode);
+    }
+
+    // プロフィールを再取得して組織情報を反映
+    const { data: updatedProfile } = await supabase
+      .from('app_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (updatedProfile) {
+      setProfile({
+        user_id: updatedProfile.user_id,
+        full_name: updatedProfile.full_name,
+        primary_role: updatedProfile.primary_role,
+        phone: updatedProfile.phone,
+        gender: updatedProfile.gender,
+        email: user.email,
+        is_super_admin: updatedProfile.primary_role === 'super_admin',
+        families: [],
+        organizations: [],
+      });
+    }
+
+    return invitation.organization_id;
   };
 
   // ログアウト
@@ -160,6 +315,7 @@ export function useAuth() {
     signIn,
     signUp,
     signInWithGoogle,
+    joinOrganization,
     signOut,
     updateProfile,
     refetchProfile: () => {

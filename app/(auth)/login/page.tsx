@@ -60,7 +60,28 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
       toast.success('ログインしました');
-      router.push('/');
+
+      // プロフィールを取得してsuper_adminか確認
+      const supabase = (await import('@/lib/supabase/client')).createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('app_profiles')
+          .select('primary_role')
+          .eq('user_id', user.id)
+          .single();
+
+        // super_adminの場合は管理画面にリダイレクト
+        if (profile?.primary_role === 'super_admin') {
+          router.push('/admin/organizations');
+        } else {
+          router.push('/');
+        }
+      } else {
+        router.push('/');
+      }
+
       router.refresh();
     } catch (error: any) {
       console.error('ログインエラー:', error);

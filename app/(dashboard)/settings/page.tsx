@@ -26,11 +26,13 @@ import { useSettingsStore } from '@/lib/store';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { User, Bell, Sparkles, Monitor, Save, Lock, Loader2 } from 'lucide-react';
+import { User, Bell, Sparkles, Monitor, Save, Lock, Loader2, Building2 } from 'lucide-react';
 import { Gender } from '@/lib/supabase/types';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const { user, profile, updateProfile } = useAuth();
+  const router = useRouter();
+  const { user, profile, updateProfile, joinOrganization } = useAuth();
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
 
@@ -45,6 +47,10 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isPasswordChanging, setIsPasswordChanging] = useState(false);
+
+  // 招待コードで組織に参加
+  const [invitationCode, setInvitationCode] = useState('');
+  const [isJoiningOrganization, setIsJoiningOrganization] = useState(false);
 
   // プロフィール情報を初期化
   useEffect(() => {
@@ -120,6 +126,28 @@ export default function SettingsPage() {
 
   const handleSaveSettings = () => {
     toast.success('設定を保存しました');
+  };
+
+  // 招待コードで組織に参加
+  const handleJoinOrganization = async () => {
+    if (!invitationCode.trim()) {
+      toast.error('招待コードを入力してください');
+      return;
+    }
+
+    setIsJoiningOrganization(true);
+    try {
+      await joinOrganization(invitationCode);
+      toast.success('事業所への参加が完了しました');
+      setInvitationCode('');
+      // ページをリロードして最新の組織情報を表示
+      router.refresh();
+    } catch (error: any) {
+      console.error('組織参加エラー:', error);
+      toast.error(error.message || '事業所への参加に失敗しました');
+    } finally {
+      setIsJoiningOrganization(false);
+    }
   };
 
   // ローディング中
@@ -321,6 +349,56 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 招待コードで事業所に参加（組織に未所属の場合のみ表示） */}
+          {(!profile.organizations || profile.organizations.length === 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  招待コードで事業所に参加
+                </CardTitle>
+                <CardDescription>
+                  事業所から受け取った招待コードを入力して参加できます
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invitation-code">招待コード</Label>
+                  <Input
+                    id="invitation-code"
+                    type="text"
+                    placeholder="例: ABC123XY"
+                    value={invitationCode}
+                    onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+                    disabled={isJoiningOrganization}
+                    maxLength={8}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    事業所管理者から受け取った8文字の招待コードを入力してください
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleJoinOrganization}
+                  disabled={isJoiningOrganization || !invitationCode.trim()}
+                  className="w-full"
+                >
+                  {isJoiningOrganization ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      参加処理中...
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      事業所に参加
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           )}

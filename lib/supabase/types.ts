@@ -52,6 +52,13 @@ export interface Database {
           id: string;
           name: string;
           billing_plan: string;
+          logo_url: string | null;
+          custom_domain: string | null;
+          email: string | null;
+          address: string | null;
+          current_family_count: number;
+          current_staff_count: number;
+          business_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -59,6 +66,13 @@ export interface Database {
           id?: string;
           name: string;
           billing_plan?: string;
+          logo_url?: string | null;
+          custom_domain?: string | null;
+          email?: string | null;
+          address?: string | null;
+          current_family_count?: number;
+          current_staff_count?: number;
+          business_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -66,6 +80,13 @@ export interface Database {
           id?: string;
           name?: string;
           billing_plan?: string;
+          logo_url?: string | null;
+          custom_domain?: string | null;
+          email?: string | null;
+          address?: string | null;
+          current_family_count?: number;
+          current_staff_count?: number;
+          business_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -197,6 +218,44 @@ export interface Database {
           original_name?: string;
           supabase_path?: string;
           openai_file_id?: string | null;
+          created_at?: string;
+        };
+      };
+      organization_invitations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          code: string;
+          role: OrganizationMemberRole;
+          created_by: string;
+          expires_at: string;
+          max_uses: number;
+          used_count: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          code: string;
+          role: OrganizationMemberRole;
+          created_by: string;
+          expires_at: string;
+          max_uses?: number;
+          used_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          code?: string;
+          role?: OrganizationMemberRole;
+          created_by?: string;
+          expires_at?: string;
+          max_uses?: number;
+          used_count?: number;
+          is_active?: boolean;
           created_at?: string;
         };
       };

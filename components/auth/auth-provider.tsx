@@ -10,7 +10,7 @@ import { Loader2, Heart } from 'lucide-react';
  * 認証状態に応じてリダイレクトとローディング表示を管理
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const hasRedirected = useRef(false);
@@ -34,7 +34,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 認証済みユーザーがログイン/サインアップページにアクセスした場合
     if (user && isPublicPath && pathname !== '/auth/callback' && pathname !== '/auth/confirm') {
       hasRedirected.current = true;
-      router.replace('/');
+      // super_adminの場合は管理画面へ、それ以外はダッシュボードへ
+      if (profile?.is_super_admin) {
+        router.replace('/admin/organizations');
+      } else {
+        router.replace('/');
+      }
+      return;
+    }
+
+    // super_adminが一般ユーザー用ページにアクセスした場合、管理画面にリダイレクト
+    if (user && profile?.is_super_admin && !pathname.startsWith('/admin') && !isPublicPath) {
+      hasRedirected.current = true;
+      router.replace('/admin/organizations');
       return;
     }
 
@@ -44,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace('/login');
       return;
     }
-  }, [user, loading, pathname, router]);
+  }, [user, profile, loading, pathname, router, isPublicPath]);
 
   // ローディング中の表示
   if (loading) {

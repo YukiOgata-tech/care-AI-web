@@ -18,9 +18,10 @@ export function formatFileSize(bytes: number): string {
 }
 
 // 相対的な時間表示
-export function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date | string): string {
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
     return 'たった今';
@@ -34,7 +35,7 @@ export function formatRelativeTime(date: Date): string {
     const days = Math.floor(diffInSeconds / 86400);
     return `${days}日前`;
   } else {
-    return date.toLocaleDateString('ja-JP', {
+    return dateObj.toLocaleDateString('ja-JP', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
