@@ -24,7 +24,7 @@ export function useAuth() {
           .select('*')
           .eq('user_id', user.id)
           .single()
-          .then(({ data, error }) => {
+          .then(async ({ data, error }) => {
             if (error || !data) {
               // プロフィールがない場合は基本情報のみ
               setProfile({
@@ -38,7 +38,24 @@ export function useAuth() {
                 organizations: [],
               });
             } else {
-              // プロフィールがある場合
+              // プロフィールがある場合、組織情報も取得
+              const { data: orgMembers } = await supabase
+                .from('organization_members')
+                .select(`
+                  organization_id,
+                  role,
+                  organizations (
+                    name
+                  )
+                `)
+                .eq('user_id', user.id);
+
+              const organizations = orgMembers?.map((om: any) => ({
+                organization_id: om.organization_id,
+                organization_name: om.organizations?.name || '不明',
+                role: om.role,
+              })) || [];
+
               setProfile({
                 user_id: data.user_id,
                 full_name: data.full_name,
@@ -48,7 +65,7 @@ export function useAuth() {
                 email: user.email,
                 is_super_admin: data.primary_role === 'super_admin',
                 families: [],
-                organizations: [],
+                organizations: organizations,
               });
             }
             setLoading(false);
@@ -249,6 +266,24 @@ export function useAuth() {
       .single();
 
     if (updatedProfile) {
+      // 組織情報も取得
+      const { data: orgMembers } = await supabase
+        .from('organization_members')
+        .select(`
+          organization_id,
+          role,
+          organizations (
+            name
+          )
+        `)
+        .eq('user_id', user.id);
+
+      const organizations = orgMembers?.map((om: any) => ({
+        organization_id: om.organization_id,
+        organization_name: om.organizations?.name || '不明',
+        role: om.role,
+      })) || [];
+
       setProfile({
         user_id: updatedProfile.user_id,
         full_name: updatedProfile.full_name,
@@ -258,7 +293,7 @@ export function useAuth() {
         email: user.email,
         is_super_admin: updatedProfile.primary_role === 'super_admin',
         families: [],
-        organizations: [],
+        organizations: organizations,
       });
     }
 
@@ -295,6 +330,24 @@ export function useAuth() {
       .single();
 
     if (data) {
+      // 組織情報も取得
+      const { data: orgMembers } = await supabase
+        .from('organization_members')
+        .select(`
+          organization_id,
+          role,
+          organizations (
+            name
+          )
+        `)
+        .eq('user_id', user.id);
+
+      const organizations = orgMembers?.map((om: any) => ({
+        organization_id: om.organization_id,
+        organization_name: om.organizations?.name || '不明',
+        role: om.role,
+      })) || [];
+
       setProfile({
         user_id: data.user_id,
         full_name: data.full_name,
@@ -303,7 +356,7 @@ export function useAuth() {
         email: user.email,
         is_super_admin: data.primary_role === 'super_admin',
         families: [],
-        organizations: [],
+        organizations: organizations,
       });
     }
   };
@@ -326,8 +379,26 @@ export function useAuth() {
           .select('*')
           .eq('user_id', user.id)
           .single()
-          .then(({ data }) => {
+          .then(async ({ data }) => {
             if (data) {
+              // 組織情報も取得
+              const { data: orgMembers } = await supabase
+                .from('organization_members')
+                .select(`
+                  organization_id,
+                  role,
+                  organizations (
+                    name
+                  )
+                `)
+                .eq('user_id', user.id);
+
+              const organizations = orgMembers?.map((om: any) => ({
+                organization_id: om.organization_id,
+                organization_name: om.organizations?.name || '不明',
+                role: om.role,
+              })) || [];
+
               setProfile({
                 user_id: data.user_id,
                 full_name: data.full_name,
@@ -337,7 +408,7 @@ export function useAuth() {
                 email: user.email,
                 is_super_admin: data.primary_role === 'super_admin',
                 families: [],
-                organizations: [],
+                organizations: organizations,
               });
             }
           });

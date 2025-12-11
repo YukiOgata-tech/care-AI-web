@@ -30,19 +30,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Home, Loader2, Search, Building2, Plus, Pencil, Eye } from 'lucide-react';
+import { Home, Loader2, Plus, Users, Pencil, Eye, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
-interface FamilyWithOrg {
+interface Family {
   id: string;
   organization_id: string;
   label: string;
@@ -52,27 +46,28 @@ interface FamilyWithOrg {
   emergency_contact: string | null;
   created_at: string;
   updated_at: string;
-  organization_name: string;
   member_count: number;
 }
 
-interface Organization {
-  id: string;
-  name: string;
+interface ConfirmDialogData {
+  title: string;
+  description: string;
+  onConfirm: () => void;
 }
 
 export default function FamiliesPage() {
   const router = useRouter();
-  const [families, setFamilies] = useState<FamilyWithOrg[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const { profile } = useAuth();
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedFamily, setSelectedFamily] = useState<FamilyWithOrg | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
+  const [confirmDialogData, setConfirmDialogData] = useState<ConfirmDialogData | null>(null);
 
   // フォーム状態
-  const [formOrganizationId, setFormOrganizationId] = useState('');
   const [formLabel, setFormLabel] = useState('');
   const [formNote, setFormNote] = useState('');
   const [formAddress, setFormAddress] = useState('');
@@ -83,48 +78,45 @@ export default function FamiliesPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    fetchFamilies();
-    fetchOrganizations();
-  }, []);
+    checkAccess();
+  }, [profile]);
 
-  const fetchOrganizations = async () => {
-    try {
-      const { data: orgs, error } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .order('name', { ascending: true });
+  const checkAccess = async () => {
+    if (!profile) return;
 
-      if (error) throw error;
-      setOrganizations(orgs || []);
-    } catch (error: any) {
-      console.error('事業所取得エラー:', error);
-      toast.error('事業所データの取得に失敗しました');
+    // owner/manager のみアクセス可能
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id, role')
+      .eq('user_id', profile.user_id)
+      .single();
+
+    if (!membership || !['owner', 'manager'].includes(membership.role)) {
+      toast.error('この機能にアクセスする権限がありません');
+      router.replace('/');
+      return;
     }
+
+    setOrganizationId(membership.organization_id);
+    fetchFamilies(membership.organization_id);
   };
 
-  const fetchFamilies = async () => {
+  const fetchFamilies = async (orgId: string) => {
     try {
       setLoading(true);
 
-      // 家族データ取得
+      // 家族データ取得（自分の事業所のみ）
       const { data: familiesData, error: familiesError } = await supabase
         .from('families')
         .select('*')
+        .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
 
       if (familiesError) throw familiesError;
 
-      // 各家族の事業所名とメンバー数を取得
-      const familiesWithOrg = await Promise.all(
+      // 各家族のメンバー数を取得
+      const familiesWithMembers = await Promise.all(
         (familiesData || []).map(async (family) => {
-          // 事業所名取得
-          const { data: org } = await supabase
-            .from('organizations')
-            .select('name')
-            .eq('id', family.organization_id)
-            .single();
-
-          // メンバー数取得
           const { count: memberCount } = await supabase
             .from('family_members')
             .select('*', { count: 'exact', head: true })
@@ -132,13 +124,12 @@ export default function FamiliesPage() {
 
           return {
             ...family,
-            organization_name: org?.name || '不明',
             member_count: memberCount || 0,
           };
         })
       );
 
-      setFamilies(familiesWithOrg);
+      setFamilies(familiesWithMembers);
     } catch (error: any) {
       console.error('家族データ取得エラー:', error);
       toast.error('家族データの取得に失敗しました');
@@ -148,8 +139,8 @@ export default function FamiliesPage() {
   };
 
   const handleCreateFamily = async () => {
-    if (!formOrganizationId) {
-      toast.error('事業所を選択してください');
+    if (!organizationId) {
+      toast.error('事業所情報が取得できません');
       return;
     }
 
@@ -162,7 +153,7 @@ export default function FamiliesPage() {
       setFormSubmitting(true);
 
       const { error } = await supabase.from('families').insert({
-        organization_id: formOrganizationId,
+        organization_id: organizationId,
         label: formLabel.trim(),
         note: formNote.trim() || null,
         address: formAddress.trim() || null,
@@ -174,13 +165,12 @@ export default function FamiliesPage() {
 
       toast.success('家族を作成しました');
       setCreateDialogOpen(false);
-      setFormOrganizationId('');
       setFormLabel('');
       setFormNote('');
       setFormAddress('');
       setFormPhone('');
       setFormEmergencyContact('');
-      fetchFamilies();
+      fetchFamilies(organizationId);
     } catch (error: any) {
       console.error('家族作成エラー:', error);
       toast.error('家族の作成に失敗しました');
@@ -189,19 +179,27 @@ export default function FamiliesPage() {
     }
   };
 
-  const openEditDialog = (family: FamilyWithOrg) => {
-    setSelectedFamily(family);
-    setFormOrganizationId(family.organization_id);
-    setFormLabel(family.label);
-    setFormNote(family.note || '');
-    setFormAddress(family.address || '');
-    setFormPhone(family.phone || '');
-    setFormEmergencyContact(family.emergency_contact || '');
-    setEditDialogOpen(true);
+  const openEditDialog = (family: Family) => {
+    // 編集前に確認ダイアログを表示
+    setConfirmDialogData({
+      title: '家族情報を編集しますか？',
+      description: `「${family.label}」の情報を編集します。この操作により既存の情報が変更されます。よろしいですか？`,
+      onConfirm: () => {
+        setSelectedFamily(family);
+        setFormLabel(family.label);
+        setFormNote(family.note || '');
+        setFormAddress(family.address || '');
+        setFormPhone(family.phone || '');
+        setFormEmergencyContact(family.emergency_contact || '');
+        setConfirmDialogOpen(false);
+        setEditDialogOpen(true);
+      },
+    });
+    setConfirmDialogOpen(true);
   };
 
   const handleUpdateFamily = async () => {
-    if (!selectedFamily) return;
+    if (!selectedFamily || !organizationId) return;
 
     if (!formLabel.trim()) {
       toast.error('家族名を入力してください');
@@ -227,7 +225,7 @@ export default function FamiliesPage() {
       toast.success('家族情報を更新しました');
       setEditDialogOpen(false);
       setSelectedFamily(null);
-      fetchFamilies();
+      fetchFamilies(organizationId);
     } catch (error: any) {
       console.error('家族更新エラー:', error);
       toast.error('家族情報の更新に失敗しました');
@@ -236,11 +234,13 @@ export default function FamiliesPage() {
     }
   };
 
-  const filteredFamilies = families.filter(
-    (family) =>
-      family.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      family.organization_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -248,11 +248,11 @@ export default function FamiliesPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Home className="h-8 w-8 text-destructive" />
+            <Home className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold tracking-tight">家族管理</h1>
           </div>
           <p className="text-muted-foreground">
-            全ての家族（介護対象世帯）を管理します
+            担当する家族（介護対象世帯）を管理します
           </p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
@@ -261,24 +261,15 @@ export default function FamiliesPage() {
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Stats Card */}
       <Card>
-        <CardHeader>
-          <CardTitle>家族検索</CardTitle>
-          <CardDescription>
-            家族名または事業所名で検索できます
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">登録家族数</CardTitle>
+          <Home className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="家族名または事業所名で検索..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <div className="text-2xl font-bold">{families.length}</div>
+          <p className="text-xs text-muted-foreground">担当家族の総数</p>
         </CardContent>
       </Card>
 
@@ -287,47 +278,43 @@ export default function FamiliesPage() {
         <CardHeader>
           <CardTitle>家族一覧</CardTitle>
           <CardDescription>
-            登録されている全ての家族を表示しています（{filteredFamilies.length}件）
+            登録されている家族を表示しています
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredFamilies.length === 0 ? (
+          {families.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? '検索結果が見つかりません' : '家族が登録されていません'}
+              家族が登録されていません
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>家族名</TableHead>
-                  <TableHead>所属事業所</TableHead>
                   <TableHead>住所</TableHead>
                   <TableHead>電話番号</TableHead>
+                  <TableHead>緊急連絡先</TableHead>
                   <TableHead className="text-center">メンバー数</TableHead>
                   <TableHead>作成日時</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredFamilies.map((family) => (
+                {families.map((family) => (
                   <TableRow key={family.id}>
                     <TableCell className="font-medium">{family.label}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span>{family.organization_name}</span>
-                      </div>
-                    </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {family.address || '-'}
                     </TableCell>
                     <TableCell>{family.phone || '-'}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">
+                      {family.emergency_contact || '-'}
+                    </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline">{family.member_count}</Badge>
+                      <div className="flex items-center justify-center gap-1">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{family.member_count}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatRelativeTime(family.created_at)}
@@ -337,7 +324,7 @@ export default function FamiliesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/admin/families/${family.id}`)}
+                          onClick={() => router.push(`/families/${family.id}`)}
                           title="詳細"
                         >
                           <Eye className="h-4 w-4" />
@@ -362,7 +349,7 @@ export default function FamiliesPage() {
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>家族を作成</DialogTitle>
             <DialogDescription>
@@ -370,30 +357,6 @@ export default function FamiliesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="create-organization">所属事業所 *</Label>
-              <Select value={formOrganizationId} onValueChange={setFormOrganizationId}>
-                <SelectTrigger id="create-organization">
-                  <SelectValue placeholder="事業所を選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      事業所が登録されていません
-                    </div>
-                  ) : (
-                    organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.id}>
-                        {org.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                この家族が所属する事業所を選択してください
-              </p>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="create-label">家族名 *</Label>
               <Input
@@ -466,6 +429,35 @@ export default function FamiliesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Confirm Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>{confirmDialogData?.title}</DialogTitle>
+            </div>
+            <DialogDescription>
+              {confirmDialogData?.description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => confirmDialogData?.onConfirm()}
+            >
+              続行
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -476,18 +468,6 @@ export default function FamiliesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-organization">所属事業所</Label>
-              <Input
-                id="edit-organization"
-                value={selectedFamily?.organization_name || ''}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                事業所は変更できません
-              </p>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="edit-label">家族名 *</Label>
               <Input

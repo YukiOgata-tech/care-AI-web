@@ -20,7 +20,17 @@
       "Bash(cmd /c \"move app\\(admin)\\layout.tsx app\\admin\\layout.tsx\")",
       "Bash(cmd /c \"rmdir /s /q app\\(admin)\")",
       "Bash(cmd /c \"dir /s /b app\\admin 2>nul\")",
-      "Bash(cmd /c \"dir /s /b app\\(admin) 2>nul\")"
+      "Bash(cmd /c \"dir /s /b app\\(admin) 2>nul\")",
+      "Bash(cmd /c \"mkdir app\\(dashboard)\\families 2>nul || exit 0\")",
+      "Bash(cmd /c \"mkdir app\\admin\\families\\[id] app\\(dashboard)\\families\\[id] 2>nul || exit 0\")",
+      "Bash(tail:*)",
+      "Bash(cmd /c \"mkdir app\\(dashboard)\\families\\[id]\\care-persons\\[carePersonId] 2>nul || exit 0\")",
+      "Bash(cmd /c \"if exist app\\(dashboard)\\families\\[familyId]\\care-persons\\[id]\\page.tsx (copy app\\(dashboard)\\families\\[familyId]\\care-persons\\[id]\\page.tsx app\\(dashboard)\\families\\[id]\\care-persons\\[carePersonId]\\page.tsx) else (echo File NOT found)\")",
+      "Bash(cmd /c \"dir /s /b app\\(dashboard)\\families\\[familyId] 2>nul\")",
+      "Bash(cmd /c \"dir /s /b app\\(dashboard)\\families 2>nul\")",
+      "Bash(cmd /c \"cd app\\(dashboard)\\families && dir /s /b\")",
+      "Bash(ls:*)",
+      "Bash(npm view:*)"
     ],
     "deny": [],
     "ask": []

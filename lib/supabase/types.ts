@@ -14,6 +14,8 @@ export type PrimaryRole = 'family' | 'staff' | 'manager' | 'admin' | 'super_admi
 export type FamilyMemberRole = 'family' | 'care_staff' | 'care_manager';
 export type OrganizationMemberRole = 'owner' | 'manager' | 'staff';
 export type Gender = 'male' | 'female' | 'other';
+export type SubscriptionType = 'organization' | 'individual' | 'free';
+export type ServiceStatus = 'active' | 'paused' | 'terminated';
 
 export interface Database {
   public: {
@@ -97,21 +99,42 @@ export interface Database {
           organization_id: string;
           label: string;
           note: string | null;
+          address: string | null;
+          phone: string | null;
+          emergency_contact: string | null;
+          subscription_type: SubscriptionType;
+          service_status: ServiceStatus;
+          meta: Json | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           organization_id: string;
           label: string;
           note?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          emergency_contact?: string | null;
+          subscription_type?: SubscriptionType;
+          service_status?: ServiceStatus;
+          meta?: Json | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           organization_id?: string;
           label?: string;
           note?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          emergency_contact?: string | null;
+          subscription_type?: SubscriptionType;
+          service_status?: ServiceStatus;
+          meta?: Json | null;
           created_at?: string;
+          updated_at?: string;
         };
       };
       care_persons: {

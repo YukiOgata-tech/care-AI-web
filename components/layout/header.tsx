@@ -1,9 +1,11 @@
 'use client';
 
-import { Menu, Bell } from 'lucide-react';
+import { Menu, Bell, Building2, User, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUIStore, useNotificationStore } from '@/lib/store';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +17,44 @@ import {
 import { formatRelativeTime } from '@/lib/utils';
 
 export function Header() {
+  const router = useRouter();
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const notifications = useNotificationStore((state) => state.notifications);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const { profile, signOut } = useAuth();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/login');
+  };
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'owner':
+        return 'default';
+      case 'manager':
+        return 'secondary';
+      case 'staff':
+        return 'outline';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'owner':
+        return 'オーナー';
+      case 'manager':
+        return 'マネージャー';
+      case 'staff':
+        return 'スタッフ';
+      default:
+        return role;
+    }
+  };
 
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-card px-6">
@@ -33,6 +68,92 @@ export function Header() {
       </Button>
 
       <div className="flex-1"></div>
+
+      {/* User Organization Info */}
+      {profile && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="gap-2 hidden sm:flex">
+              <Building2 className="h-4 w-4" />
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-medium leading-none">
+                  {profile.organizations && profile.organizations.length > 0
+                    ? profile.organizations[0].organization_name
+                    : profile.is_super_admin
+                    ? 'システム管理者'
+                    : '未所属'}
+                </span>
+                {profile.organizations && profile.organizations.length > 0 && (
+                  <span className="text-xs text-muted-foreground leading-none mt-1">
+                    {getRoleLabel(profile.organizations[0].role)}
+                  </span>
+                )}
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">{profile.full_name || 'ユーザー'}</p>
+                <p className="text-xs text-muted-foreground">{profile.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {profile.organizations && profile.organizations.length > 0 && (
+              <>
+                <div className="px-2 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {profile.organizations[0].organization_name}
+                      </p>
+                      <Badge
+                        variant={getRoleBadgeVariant(profile.organizations[0].role) as any}
+                        className="mt-1"
+                      >
+                        {getRoleLabel(profile.organizations[0].role)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            {profile.is_super_admin && (
+              <>
+                <div className="px-2 py-1.5">
+                  <Badge variant="destructive" className="w-full justify-center">
+                    システム管理者
+                  </Badge>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <Settings className="mr-2 h-4 w-4" />
+              設定
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+              <LogOut className="mr-2 h-4 w-4" />
+              ログアウト
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      {/* Mobile User Info - Badge only */}
+      {profile && (
+        <div className="sm:hidden">
+          {profile.organizations && profile.organizations.length > 0 ? (
+            <Badge variant={getRoleBadgeVariant(profile.organizations[0].role) as any}>
+              {getRoleLabel(profile.organizations[0].role)}
+            </Badge>
+          ) : profile.is_super_admin ? (
+            <Badge variant="destructive">管理者</Badge>
+          ) : null}
+        </div>
+      )}
 
       {/* Notifications */}
       <DropdownMenu>

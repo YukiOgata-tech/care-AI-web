@@ -365,10 +365,21 @@ export default function OrganizationPage() {
       {/* Organization Details */}
       <Card>
         <CardHeader>
-          <CardTitle>事業所情報</CardTitle>
-          <CardDescription>
-            事業所の基本情報
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>事業所情報</CardTitle>
+              <CardDescription>
+                事業所の基本情報
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/organization/info')}
+            >
+              詳細を見る
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
