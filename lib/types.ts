@@ -22,6 +22,7 @@ export interface Message {
 // 会話型
 export interface Conversation {
   id: string;
+  familyId: string;
   title: string;
   messages: Message[];
   createdAt: Date;

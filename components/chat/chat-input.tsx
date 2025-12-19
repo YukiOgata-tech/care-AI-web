@@ -12,9 +12,13 @@ interface ChatInputProps {
   isLoading: boolean;
 }
 
-export function ChatInput({ onSend, isLoading }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  isLoading,
+  fileSearchAvailable = false,
+}: ChatInputProps & { fileSearchAvailable?: boolean }) {
   const [input, setInput] = useState('');
-  const [fileSearchEnabled, setFileSearchEnabled] = useState(true);
+  const [fileSearchEnabled, setFileSearchEnabled] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +45,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
             id="file-search"
             checked={fileSearchEnabled}
             onCheckedChange={setFileSearchEnabled}
-            disabled={isLoading}
+            disabled={isLoading || !fileSearchAvailable}
           />
           <Label htmlFor="file-search" className="text-sm cursor-pointer">
             資料検索を有効にする（File Search）

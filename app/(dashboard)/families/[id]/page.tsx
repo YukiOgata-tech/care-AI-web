@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Home, Loader2, ArrowLeft, Building2, Users, Phone, MapPin, AlertCircle, Plus, Copy, CheckCircle, XCircle, Trash2, UserPlus } from 'lucide-react';
+import { Home, Loader2, ArrowLeft, Building2, Users, Phone, MapPin, AlertCircle, Plus, Copy, CheckCircle, XCircle, Trash2, UserPlus, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/utils';
@@ -518,22 +518,46 @@ export default function FamilyDetailPage() {
         </Button>
       </div>
 
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <Home className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">{family.label}</h1>
-          <Badge
-            variant={family.service_status === 'active' ? 'default' : 'secondary'}
-            className={family.service_status === 'active' ? 'bg-green-600' : ''}
-          >
-            {family.service_status === 'active' && '稼働中'}
-            {family.service_status === 'paused' && '一時停止'}
-            {family.service_status === 'terminated' && '終了'}
-          </Badge>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <Home className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight">{family.label}</h1>
+            <Badge
+              variant={family.service_status === 'active' ? 'default' : 'secondary'}
+              className={family.service_status === 'active' ? 'bg-green-600' : ''}
+            >
+              {family.service_status === 'active' && '稼働中'}
+              {family.service_status === 'paused' && '一時停止'}
+              {family.service_status === 'terminated' && '終了'}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">
+            家族の詳細情報とメンバー管理
+          </p>
         </div>
-        <p className="text-muted-foreground">
-          家族の詳細情報とメンバー管理
-        </p>
+
+        {/* User Role Status */}
+        {permissions.role && (
+          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">{getRoleIcon(permissions.role)}</div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    あなたの立ち位置
+                  </p>
+                  <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    {getRoleLabel(permissions.role)}
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    {getRoleDescription(permissions.role)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -574,6 +598,73 @@ export default function FamilyDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>クイックアクション</CardTitle>
+          <CardDescription>
+            この家族に関連する機能にアクセスします
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-4"
+              onClick={() => router.push(`/families/${familyId}/files`)}
+            >
+              <div className="flex items-center gap-3 w-full">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">ファイル管理</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    資料の閲覧・アップロード
+                  </div>
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-4"
+              disabled
+            >
+              <div className="flex items-center gap-3 w-full">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">AIチャット</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    準備中
+                  </div>
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="justify-start h-auto py-4"
+              disabled
+            >
+              <div className="flex items-center gap-3 w-full">
+                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <Home className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">ケア記録</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    準備中
+                  </div>
+                </div>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Family Details */}
       <Card>

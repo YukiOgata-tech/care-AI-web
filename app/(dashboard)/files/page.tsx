@@ -1,117 +1,188 @@
 'use client';
 
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileCard } from '@/components/files/file-card';
-import { FileUpload } from '@/components/files/file-upload';
-import { useDocumentStore } from '@/lib/store';
-import { Search } from 'lucide-react';
-import { getCategoryLabel } from '@/lib/utils';
-import { DocumentCategory } from '@/lib/types';
+import { Home, FileText, Loader2, ChevronRight } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getRoleLabel, getRoleIcon, type FamilyRole } from '@/hooks/useFamilyPermissions';
 import { toast } from 'sonner';
 
-const categories: (DocumentCategory | 'all')[] = [
-  'all',
-  'emergency',
-  'medication',
-  'care_plan',
-  'doctor_order',
-  'manual',
-  'other',
-];
+interface FamilyWithFileCount {
+  id: string;
+  label: string;
+  service_status: string;
+  file_count: number;
+  user_role: FamilyRole | null;
+}
 
 export default function FilesPage() {
-  const documents = useDocumentStore((state) => state.documents);
-  const uploadDocument = useDocumentStore((state) => state.uploadDocument);
-  const deleteDocument = useDocumentStore((state) => state.deleteDocument);
+  const router = useRouter();
+  const { profile } = useAuth();
+  const [families, setFamilies] = useState<FamilyWithFileCount[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | 'all'>('all');
+  const supabase = createClient();
 
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch = doc.fileName
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === 'all' || doc.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    if (profile) {
+      fetchFamilies();
+    }
+  }, [profile]);
 
-  const handleDelete = (id: string) => {
-    if (confirm('このファイルを削除してもよろしいですか？')) {
-      deleteDocument(id);
-      toast.success('ファイルを削除しました');
+  const fetchFamilies = async () => {
+    if (!profile) return;
+
+    try {
+      setLoading(true);
+
+      // ユーザーが所属する家族を取得（ロール情報も含む）
+      const { data: memberData, error: memberError } = await supabase
+        .from('family_members')
+        .select('family_id, role')
+        .eq('user_id', profile.user_id);
+
+      if (memberError) throw memberError;
+
+      if (!memberData || memberData.length === 0) {
+        setFamilies([]);
+        setLoading(false);
+        return;
+      }
+
+      const familyIds = memberData.map((m) => m.family_id);
+
+      // 家族情報を取得
+      const { data: familiesData, error: familiesError } = await supabase
+        .from('families')
+        .select('id, label, service_status')
+        .in('id', familyIds)
+        .order('label', { ascending: true });
+
+      if (familiesError) throw familiesError;
+
+      // 各家族のファイル数とロール情報を取得
+      const familiesWithCount = await Promise.all(
+        (familiesData || []).map(async (family) => {
+          const { count } = await supabase
+            .from('family_files')
+            .select('*', { count: 'exact', head: true })
+            .eq('family_id', family.id);
+
+          // このユーザーのロールを取得
+          const memberInfo = memberData.find((m) => m.family_id === family.id);
+
+          return {
+            ...family,
+            file_count: count || 0,
+            user_role: (memberInfo?.role as FamilyRole) || null,
+          };
+        })
+      );
+
+      setFamilies(familiesWithCount);
+    } catch (error: any) {
+      console.error('家族一覧取得エラー:', error);
+      toast.error('家族一覧の取得に失敗しました');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getCategoryCount = (category: DocumentCategory | 'all') => {
-    if (category === 'all') return documents.length;
-    return documents.filter((d) => d.category === category).length;
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <FileText className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight">ファイル管理</h1>
-          <p className="text-muted-foreground">
-            アップロードされた資料を管理します
-          </p>
         </div>
-        <FileUpload onUpload={uploadDocument} />
+        <p className="text-muted-foreground">
+          所属している家族のファイルを管理します。家族を選択してください。
+        </p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="ファイル名で検索..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Families List */}
+      {families.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Home className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground text-center">
+              所属している家族がありません
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {families.map((family) => (
+            <Card
+              key={family.id}
+              className="cursor-pointer hover:shadow-md transition-all"
+              onClick={() => router.push(`/families/${family.id}/files`)}
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Home className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{family.label}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {family.file_count}件のファイル
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={family.service_status === 'active' ? 'default' : 'secondary'}
+                      className={family.service_status === 'active' ? 'bg-green-600' : ''}
+                    >
+                      {family.service_status === 'active' && '稼働中'}
+                      {family.service_status === 'paused' && '一時停止'}
+                      {family.service_status === 'terminated' && '終了'}
+                    </Badge>
+                  </div>
 
-      {/* Tabs by Category */}
-      <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as any)}>
-        <TabsList className="w-full justify-start overflow-x-auto">
-          {categories.map((category) => (
-            <TabsTrigger key={category} value={category} className="gap-2">
-              {category === 'all' ? 'すべて' : getCategoryLabel(category)}
-              <Badge variant="secondary" className="ml-1">
-                {getCategoryCount(category)}
-              </Badge>
-            </TabsTrigger>
+                  {/* User Role Display */}
+                  {family.user_role && (
+                    <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                      <span className="text-lg">{getRoleIcon(family.user_role)}</span>
+                      <div className="flex-1">
+                        <p className="text-xs text-blue-600 dark:text-blue-400">あなたの立ち位置</p>
+                        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                          {getRoleLabel(family.user_role)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           ))}
-        </TabsList>
-
-        {categories.map((category) => (
-          <TabsContent key={category} value={category} className="mt-6">
-            {filteredDocuments.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery
-                    ? '検索結果が見つかりませんでした'
-                    : 'このカテゴリにはまだファイルがありません'}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredDocuments.map((document) => (
-                  <FileCard
-                    key={document.id}
-                    document={document}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

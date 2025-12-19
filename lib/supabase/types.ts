@@ -105,6 +105,7 @@ export interface Database {
           subscription_type: SubscriptionType;
           service_status: ServiceStatus;
           meta: Json | null;
+          openai_vector_store_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -119,6 +120,7 @@ export interface Database {
           subscription_type?: SubscriptionType;
           service_status?: ServiceStatus;
           meta?: Json | null;
+          openai_vector_store_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -133,6 +135,7 @@ export interface Database {
           subscription_type?: SubscriptionType;
           service_status?: ServiceStatus;
           meta?: Json | null;
+          openai_vector_store_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -164,6 +167,123 @@ export interface Database {
           gender?: Gender | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      conversations: {
+        Row: {
+          id: string;
+          family_id: string;
+          created_by: string;
+          title: string | null;
+          archived: boolean;
+          archived_at: string | null;
+          archived_by: string | null;
+          last_message_at: string | null;
+          message_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          created_by: string;
+          title?: string | null;
+          archived?: boolean;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          last_message_at?: string | null;
+          message_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          created_by?: string;
+          title?: string | null;
+          archived?: boolean;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          last_message_at?: string | null;
+          message_count?: number;
+          created_at?: string;
+        };
+      };
+      conversation_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          sender_user_id: string | null;
+          role: 'user' | 'assistant' | 'staff' | 'system';
+          content: string;
+          category: 'general' | 'personal' | 'medicine' | 'relations' | 'other' | null;
+          category_confidence: number | null;
+          client_message_id: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          sender_user_id?: string | null;
+          role: 'user' | 'assistant' | 'staff' | 'system';
+          content: string;
+          category?: 'general' | 'personal' | 'medicine' | 'relations' | 'other' | null;
+          category_confidence?: number | null;
+          client_message_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          sender_user_id?: string | null;
+          role?: 'user' | 'assistant' | 'staff' | 'system';
+          content?: string;
+          category?: 'general' | 'personal' | 'medicine' | 'relations' | 'other' | null;
+          category_confidence?: number | null;
+          client_message_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+      };
+      conversation_summaries: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          start_message_created_at: string;
+          end_message_created_at: string;
+          summary_text: string;
+          status: 'ready' | 'failed';
+          last_error: string | null;
+          model: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          start_message_created_at: string;
+          end_message_created_at: string;
+          summary_text: string;
+          status?: 'ready' | 'failed';
+          last_error?: string | null;
+          model?: string | null;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          start_message_created_at?: string;
+          end_message_created_at?: string;
+          summary_text?: string;
+          status?: 'ready' | 'failed';
+          last_error?: string | null;
+          model?: string | null;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          created_at?: string;
         };
       };
       family_members: {
@@ -221,6 +341,11 @@ export interface Database {
           original_name: string;
           supabase_path: string;
           openai_file_id: string | null;
+          openai_vs_file_id: string | null;
+          index_status: string;
+          indexed_at: string | null;
+          last_error: string | null;
+          content_sha256: string | null;
           created_at: string;
         };
         Insert: {
@@ -231,6 +356,11 @@ export interface Database {
           original_name: string;
           supabase_path: string;
           openai_file_id?: string | null;
+          openai_vs_file_id?: string | null;
+          index_status?: string;
+          indexed_at?: string | null;
+          last_error?: string | null;
+          content_sha256?: string | null;
           created_at?: string;
         };
         Update: {
@@ -241,6 +371,11 @@ export interface Database {
           original_name?: string;
           supabase_path?: string;
           openai_file_id?: string | null;
+          openai_vs_file_id?: string | null;
+          index_status?: string;
+          indexed_at?: string | null;
+          last_error?: string | null;
+          content_sha256?: string | null;
           created_at?: string;
         };
       };

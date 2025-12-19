@@ -7,14 +7,6 @@ import {
   Notification,
   UserSettings,
 } from './types';
-import {
-  dummyUser,
-  dummyConversations,
-  dummyDocuments,
-  dummyNotifications,
-  dummySettings,
-  generateDummyAIResponse,
-} from './dummy-data';
 
 // ユーザー関連のストア
 interface UserStore {
@@ -26,18 +18,18 @@ interface UserStore {
 }
 
 export const useUserStore = create<UserStore>((set) => ({
-  user: dummyUser, // 開発用にダミーユーザーをセット
-  isAuthenticated: true, // 開発用にtrueに設定
+  user: null,
+  isAuthenticated: false,
   login: async (email: string, password: string) => {
-    // ダミーログイン処理
+    // 実際のログイン処理はuseAuthフックで実装されています
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    set({ user: dummyUser, isAuthenticated: true });
+    set({ isAuthenticated: true });
   },
   logout: () => {
     set({ user: null, isAuthenticated: false });
   },
   setUser: (user: User) => {
-    set({ user });
+    set({ user, isAuthenticated: true });
   },
 }));
 
@@ -46,16 +38,27 @@ interface ConversationStore {
   conversations: Conversation[];
   currentConversation: Conversation | null;
   isLoading: boolean;
+  currentFamilyId: string | null;
   setCurrentConversation: (id: string | null) => void;
-  createConversation: () => void;
+  setCurrentFamily: (familyId: string | null) => void;
+  setConversations: (conversations: Conversation[]) => void;
+  updateConversationTitle: (id: string, title: string) => void;
   sendMessage: (content: string, fileSearchEnabled: boolean) => Promise<void>;
-  deleteConversation: (id: string) => void;
+  deleteConversation: (id: string) => Promise<void>;
 }
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
-  conversations: dummyConversations,
+  conversations: [],
   currentConversation: null,
   isLoading: false,
+  currentFamilyId: null,
+
+  setCurrentFamily: (familyId: string | null) => {
+    set({
+      currentFamilyId: familyId,
+      currentConversation: null,
+    });
+  },
 
   setCurrentConversation: (id: string | null) => {
     if (id === null) {
@@ -66,33 +69,57 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set({ currentConversation: conversation || null });
   },
 
-  createConversation: () => {
-    const newConversation: Conversation = {
-      id: `conv-${Date.now()}`,
-      title: '新しい会話',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      fileSearchEnabled: true,
-    };
+  setConversations: (conversations: Conversation[]) => {
     set({
-      conversations: [newConversation, ...get().conversations],
-      currentConversation: newConversation,
+      conversations,
+      currentConversation: conversations[0] ?? null,
+    });
+  },
+
+  updateConversationTitle: (id: string, title: string) => {
+    const updated = get().conversations.map((conv) =>
+      conv.id === id ? { ...conv, title } : conv
+    );
+    const current = get().currentConversation;
+    set({
+      conversations: updated,
+      currentConversation:
+        current && current.id === id ? { ...current, title } : current,
     });
   },
 
   sendMessage: async (content: string, fileSearchEnabled: boolean) => {
-    const current = get().currentConversation;
-    if (!current) {
-      // 新しい会話を作成
-      get().createConversation();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    const familyId = get().currentFamilyId;
+
+    if (!familyId) {
+      console.warn('家族が選択されていないため、メッセージを送信できません。');
+      return;
     }
 
-    const currentConv = get().currentConversation;
+    let currentConv = get().currentConversation;
+
+    // 新規会話の場合はローカルに会話を作成（IDは一時的）
+    if (!currentConv) {
+      const tempConversation: Conversation = {
+        id: `temp-${Date.now()}`,
+        familyId,
+        title: content.slice(0, 30) || '新しい会話',
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        fileSearchEnabled,
+      };
+      const conversations = get().conversations;
+      set({
+        conversations: [tempConversation, ...conversations],
+        currentConversation: tempConversation,
+      });
+      currentConv = tempConversation;
+    }
+
     if (!currentConv) return;
 
-    // ユーザーメッセージを追加
+    // ユーザーメッセージをローカルに追加
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -106,43 +133,104 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       currentConversation: {
         ...currentConv,
         messages: updatedMessages,
-        title: currentConv.messages.length === 0 ? content.slice(0, 30) : currentConv.title,
+        title:
+          currentConv.messages.length === 0
+            ? content.slice(0, 30)
+            : currentConv.title,
       },
       isLoading: true,
     });
 
-    // ダミーAI応答を生成（遅延をシミュレート）
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          familyId,
+          message: content,
+          fileSearchEnabled,
+          conversationId: currentConv.id,
+          clientMessageId: userMessage.id,
+        }),
+      });
 
-    const aiMessage: Message = {
-      id: `msg-${Date.now()}-ai`,
-      role: 'assistant',
-      content: generateDummyAIResponse(content),
-      timestamp: new Date(),
-      fileSearchUsed: fileSearchEnabled,
-    };
+      if (!response.ok) {
+        console.error('Chat API error:', await response.text());
+        set({ isLoading: false });
+        return;
+      }
 
-    const finalMessages = [...updatedMessages, aiMessage];
-    const updatedConv = {
-      ...currentConv,
-      messages: finalMessages,
-      updatedAt: new Date(),
-      title: currentConv.messages.length === 0 ? content.slice(0, 30) : currentConv.title,
-    };
+      const data: { reply: string; conversationId?: string; title?: string } =
+        await response.json();
 
-    // conversationsリストも更新
-    const updatedConversations = get().conversations.map((c) =>
-      c.id === currentConv.id ? updatedConv : c
-    );
+      const aiMessage: Message = {
+        id: `msg-${Date.now()}-ai`,
+        role: 'assistant',
+        content: data.reply,
+        timestamp: new Date(),
+        fileSearchUsed: fileSearchEnabled,
+      };
 
-    set({
-      currentConversation: updatedConv,
-      conversations: updatedConversations,
-      isLoading: false,
-    });
+      const latestConv = get().currentConversation;
+      if (!latestConv) {
+        set({ isLoading: false });
+        return;
+      }
+
+      const finalMessages = [...latestConv.messages, aiMessage];
+      const resolvedId = data.conversationId || latestConv.id;
+      const resolvedTitle =
+        data.title ||
+        latestConv.title ||
+        (content.slice(0, 30) || '新しい会話');
+
+      const updatedConv = {
+        ...latestConv,
+        id: resolvedId,
+        title: resolvedTitle,
+        messages: finalMessages,
+        updatedAt: new Date(),
+      };
+
+      const updatedConversations = get().conversations.map((c) =>
+        c.id === latestConv.id ? updatedConv : c
+      );
+
+      set({
+        currentConversation: updatedConv,
+        conversations: updatedConversations,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('チャット送信中にエラーが発生しました:', error);
+      set({ isLoading: false });
+    }
   },
 
-  deleteConversation: (id: string) => {
+  deleteConversation: async (id: string) => {
+    const familyId = get().currentFamilyId;
+
+    try {
+      if (familyId) {
+        const res = await fetch(
+          `/api/chat?conversationId=${encodeURIComponent(
+            id
+          )}&familyId=${encodeURIComponent(familyId)}`,
+          {
+            method: 'DELETE',
+          }
+        );
+
+        if (!res.ok) {
+          console.error('Chat delete API error:', await res.text());
+        }
+      }
+    } catch (error) {
+      console.error('チャット削除中にエラーが発生しました:', error);
+    }
+
     const filtered = get().conversations.filter((c) => c.id !== id);
     set({
       conversations: filtered,
@@ -160,30 +248,16 @@ interface DocumentStore {
 }
 
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
-  documents: dummyDocuments,
+  documents: [],
 
   uploadDocument: async (file: File, category: string) => {
-    // ダミーアップロード処理
-    const newDoc: Document = {
-      id: `doc-${Date.now()}`,
-      familyId: 'family-1',
-      fileName: file.name,
-      category: category as any,
-      uploadedAt: new Date(),
-      fileSize: file.size,
-      status: 'uploading',
-    };
+    // TODO: Supabase Storageへのアップロードと、OpenAI Vector Storeへの登録を実装
+    // 1. Supabase Storageにアップロード
+    // 2. OpenAI Vector Storeにコピー
+    // 3. family_filesテーブルに両方のパスを記録
 
-    set({ documents: [newDoc, ...get().documents] });
-
-    // アップロードをシミュレート
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const updatedDocs = get().documents.map((d) =>
-      d.id === newDoc.id ? { ...d, status: 'ready' as const } : d
-    );
-
-    set({ documents: updatedDocs });
+    console.log('ファイルアップロードは未実装です:', file.name, category);
+    throw new Error('ファイルアップロード機能は現在実装中です。Supabase StorageとOpenAI APIの統合が必要です。');
   },
 
   deleteDocument: (id: string) => {
@@ -200,7 +274,7 @@ interface NotificationStore {
 }
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
-  notifications: dummyNotifications,
+  notifications: [],
 
   markAsRead: (id: string) => {
     const updated = get().notifications.map((n) =>
@@ -220,8 +294,27 @@ interface SettingsStore {
   updateSettings: (updates: Partial<UserSettings>) => void;
 }
 
+// デフォルト設定
+const defaultSettings: UserSettings = {
+  userId: '',
+  notifications: {
+    email: true,
+    push: true,
+    weeklyReport: false,
+  },
+  ai: {
+    defaultModel: 'gpt-4o-mini',
+    fileSearchDefault: true,
+    responseLength: 'normal',
+  },
+  display: {
+    theme: 'light',
+    language: 'ja',
+  },
+};
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  settings: dummySettings,
+  settings: defaultSettings,
 
   updateSettings: (updates: Partial<UserSettings>) => {
     set({

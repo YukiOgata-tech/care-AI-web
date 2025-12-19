@@ -37,7 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Home, Loader2, Search, Building2, Plus, Pencil, Eye } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Home, Loader2, Search, Building2, Plus, Pencil, Eye, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/utils';
@@ -203,18 +204,13 @@ export default function FamiliesPage() {
   const handleUpdateFamily = async () => {
     if (!selectedFamily) return;
 
-    if (!formLabel.trim()) {
-      toast.error('家族名を入力してください');
-      return;
-    }
-
     try {
       setFormSubmitting(true);
 
       const { error } = await supabase
         .from('families')
         .update({
-          label: formLabel.trim(),
+          // label は更新不可（AI検索の識別子として使用）
           note: formNote.trim() || null,
           address: formAddress.trim() || null,
           phone: formPhone.trim() || null,
@@ -370,6 +366,13 @@ export default function FamiliesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>重要：家族名は後から変更できません</AlertTitle>
+              <AlertDescription>
+                家族名はAI検索システムの識別子として使用されるため、作成後は変更できません。慎重に入力してください。
+              </AlertDescription>
+            </Alert>
             <div className="space-y-2">
               <Label htmlFor="create-organization">所属事業所 *</Label>
               <Select value={formOrganizationId} onValueChange={setFormOrganizationId}>
@@ -395,15 +398,16 @@ export default function FamiliesPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-label">家族名 *</Label>
+              <Label htmlFor="create-label">家族名 *（変更不可）</Label>
               <Input
                 id="create-label"
-                placeholder="例: 山田家、佐藤様宅"
+                placeholder="例: 山田家、(山田太郎)家、佐藤様宅"
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                識別しやすい名前を入力してください
+                <strong>推奨形式：</strong>「○○家」または「（フルネーム）家」<br />
+                例: 山田家、(山田太郎)家、田中・佐藤家
               </p>
             </div>
             <div className="space-y-2">
@@ -489,13 +493,16 @@ export default function FamiliesPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-label">家族名 *</Label>
+              <Label htmlFor="edit-label">家族名</Label>
               <Input
                 id="edit-label"
-                placeholder="例: 山田家、佐藤様宅"
                 value={formLabel}
-                onChange={(e) => setFormLabel(e.target.value)}
+                disabled
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">
+                家族名は変更できません（AI検索の識別子として使用されています）
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-address">住所（任意）</Label>

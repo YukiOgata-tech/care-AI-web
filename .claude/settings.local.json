@@ -30,7 +30,9 @@
       "Bash(cmd /c \"dir /s /b app\\(dashboard)\\families 2>nul\")",
       "Bash(cmd /c \"cd app\\(dashboard)\\families && dir /s /b\")",
       "Bash(ls:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(cmd /c \"mkdir app\\(dashboard)\\families\\[id]\\files 2>nul || exit 0\")",
+      "Bash(cmd /c \"mkdir app\\api\\files\\upload-to-vector-store 2>nul || exit 0\")"
     ],
     "deny": [],
     "ask": []

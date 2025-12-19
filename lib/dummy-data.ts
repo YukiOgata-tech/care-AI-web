@@ -68,6 +68,7 @@ export const dummyMessages: Message[] = [
 export const dummyConversations: Conversation[] = [
   {
     id: 'conv-1',
+    familyId: 'family-1',
     title: '血圧管理について',
     messages: dummyMessages,
     createdAt: new Date('2024-12-05T10:00:00'),
@@ -76,6 +77,7 @@ export const dummyConversations: Conversation[] = [
   },
   {
     id: 'conv-2',
+    familyId: 'family-1',
     title: '服薬の時間について',
     messages: [
       {
@@ -98,6 +100,7 @@ export const dummyConversations: Conversation[] = [
   },
   {
     id: 'conv-3',
+    familyId: 'family-1',
     title: '食事の注意点',
     messages: [
       {
