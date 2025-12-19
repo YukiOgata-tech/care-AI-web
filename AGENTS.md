@@ -35,3 +35,8 @@
 - `.env*` や秘密情報はコミット禁止です。必要な環境変数は `.env.local`（Supabase 用 URL / キー、将来の `OPENAI_API_KEY` など）に定義します。
 - `family_id` / `organization_id` によるデータ分離を厳守し、`lib/supabase/*` と `docs/supabase-db-structures.md` のパターンに従って実装してください。
 - より詳細なアーキテクチャやエージェント向け情報は `CLAUDE.md` と `GEMINI.md` を参照してください。
+
+
+## エンジニアメモ
+### codex command(2025/12/19)
+codex resume 019b3451-a1e9-7873-96dd-4b4a0ca6ef8d
